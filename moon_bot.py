@@ -236,7 +236,7 @@ class User:
                          random_id = get_random_id(),
                          message   = self.first_name + ', чет не смогла, попробуй еще раз!')
 
-def process_message(event, clients_table):
+def process_event(event, clients_table):
     if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
         # Слушаем longpoll, если пришло сообщение то:
         user = clients_table.get(event.user_id)
@@ -247,6 +247,10 @@ def process_message(event, clients_table):
         # if event.text == 'Первый вариант фразы' or event.text == 'Второй вариант фразы': #Если написали заданную фразу
         user.make_answer(event)
 
+def process_message(message_json):
+    print("receive " + message_json)
+    pass
+
 if __name__ == "__main__":
     clients_table = {}
 
@@ -255,4 +259,4 @@ if __name__ == "__main__":
     longpoll = VkLongPoll(vk_session)
     vk = vk_session.get_api()
     for event in longpoll.listen():
-        process_message(event, clients_table)
+        process_event(event, clients_table)
