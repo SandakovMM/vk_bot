@@ -222,9 +222,9 @@ class moonBot:
 
         try:
             self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
-                                  message    = answer['message'],
-                                  attachment = answer['attachment'],
-                                  keyboard   = answer['keyboard'])
+                                  message    = answer.get('message'),
+                                  attachment = answer.get('attachment'),
+                                  keyboard   = answer.get('keyboard'))
         except vk_api.exceptions.ApiError as err:
             print(err)
             self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
@@ -255,10 +255,10 @@ class moonBot:
                                  request_json['object']['text'])
             return 'ok'
 
-# if __name__ == "__main__":
-#     bot = moonBot()
+if __name__ == "__main__":
+    bot = moonBot()
 
-#     longpoll = VkLongPoll(vk_session)
-#     vk = vk_session.get_api()
-#     for event in longpoll.listen():
-#         bot.process_event(event)
+    longpoll = VkLongPoll(bot.vk_session)
+
+    for event in longpoll.listen():
+        bot.process_event(event)
