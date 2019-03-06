@@ -255,14 +255,15 @@ class moonBot:
         if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
             self.process_message(event.user_id, event.text)
 
-    def process_callback(self, message_json):
-        print("receive " + message_json)
-        if 'type' not in message_json.keys():
+    def process_callback(self, request_json):
+        print(request_json) # This is debug to known whats happend
+        if 'type' not in request_json.keys():
             return 'not vk'
-        if message_json['type'] == 'confirmation':
+        if request_json['type'] == 'confirmation':
             return self.config.get_confirm_secret()
-        elif message_json['type'] == 'message_new':
-            # self.process_message(event.user_id, event.text)
+        elif request_json['type'] == 'message_new':
+            self.process_message(request_json['object']['from_id'],
+                                 request_json['object']['text'])
             return 'ok'
 
 if __name__ == "__main__":
