@@ -2,6 +2,7 @@ from enum import Enum
 import json
 import requests
 from time import sleep
+import datetime
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -57,58 +58,71 @@ class States(Enum):
 
 KEYBOARD_STEP_1 = {
     'one_time': False,
-    'buttons': [[{
-        'action': {
-            'type': 'text',
-            'payload': json.dumps({'buttons': '1'}),
-            'label': 'Предыдущая',
-        },
-        'color': 'negative'
-    },
-    {
-        'action': {
-            'type': 'text',
-            'payload': json.dumps({'buttons': '2'}),
-            'label': 'Pred',
-        },
-        'color': 'primary'
-    },
-    {
-        'action': {
-            'type': 'text',
-            'payload': json.dumps({'buttons': '3'}),
-            'label': 'aaa bbb',
-        },
-        'color': 'primary'
-    },
-    {
-        'action': {
-            'type': 'text',
-            'payload': json.dumps({'buttons': '4'}),
-            'label': 'глубокое бикини + ножки полностью',
-        },
-        'color': 'primary'
-    },
-    ],[
-    {
-        'action': {
-            'type': 'text',
-            'payload': json.dumps({'buttons': '5'}),
-            'label': 'Здорова!',
-        },
-        'color': 'primary'
-    }
-    ]]
+    'buttons': []
 }
 
+def create_buttons():
+    array_pos = 1
+    store_array = []
+
+    for service in SERVICE_SET['services']:
+        store_array.append(
+            {'action': {
+                'type': 'text',
+                'payload': json.dumps({'buttons': array_pos}),
+                'label': service['type'],
+            },
+            'color': 'primary'})
+
+        array_pos += 1
+
+        if 0 == array_pos % 5:
+            KEYBOARD_STEP_1['buttons'].append(store_array)
+            store_array = []
+            array_pos = 1
+
+        # print("Услуга {} с ценой {}".format(service['type'], service['price']))
+
+    KEYBOARD_STEP_1['buttons'].append(store_array) # Last step
+
+create_buttons()
+
+# def test_is_mobile_number():
+#     print(is_mobile_number('rrasastrt'))
+#     print(is_mobile_number('+79137678498'))
+#     print(is_mobile_number('89137678498'))
+#     print(is_mobile_number('891376784q8'))
+#     print(is_mobile_number('+791376784q8'))
+#     print(is_mobile_number('+7913767849844'))
+
 def is_mobile_number(string):
-    return True
+    length = len(string)
+    if 12 != length and 11 != length:
+        return False
+
+    check_string = ''
+    if 12 == length:
+        if '+' != string[0]:
+            return False
+        check_string = string[1:]
+    else:
+        check_string = string
+
+    if check_string.isdigit():
+        return True
+    return False
 
 def is_valid_service(string):
-    return True
+    for service in SERVICE_SET['services']:
+        if string == service['type']:
+            return True
+    return False
 
-def is_valid_time(string):
-    return True
+# def test_parce_time():
+#     print(parce_time('11.12.2019 11:20'))
+
+def parce_time(string):
+    return datetime.datetime.strptime(string, '%d.%m.%Y %H:%M')
 
 def is_time_free(string):
     return True
@@ -174,12 +188,13 @@ class User:
         return { 'message': message_to_send }
 
     def receive_service_day(self, message):
-
-        if not is_valid_time(message):
+        try:
+            geted_time = parce_time(message)
+        except ValueError:
             return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00' }
 
         if not is_time_free(message):
-            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00' }
+            return { 'message': 'К сожалению данное время уже занято =(' }
 
         self.prepare_booking.time = message
         self.ready_bookings.append(self.prepare_booking)
