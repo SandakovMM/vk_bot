@@ -7,6 +7,8 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.utils import get_random_id
 
+from configuration import Configuration
+
 SERVICE_SET = {
     'services': [
         { 'type': 'Глубокое бикини',        'price':  600 },
@@ -236,27 +238,38 @@ class User:
                          random_id = get_random_id(),
                          message   = self.first_name + ', чет не смогла, попробуй еще раз!')
 
-def process_event(event, clients_table):
-    if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
-        # Слушаем longpoll, если пришло сообщение то:
-        user = clients_table.get(event.user_id)
+class moonBot:
+    def __init__(self):
+        self.clients_table = {}
+        self.config = Configuration('conf.json')
+
+    def process_message(self, user_id, message):
+        user = self.clients_table.get(user_id)
         if None == user:
-            user = User(event.user_id)
-            clients_table[event.user_id] = user
+            user = User(user_id)
+            self.clients_table[user_id] = user
 
-        # if event.text == 'Первый вариант фразы' or event.text == 'Второй вариант фразы': #Если написали заданную фразу
-        user.make_answer(event)
+        user.make_answer(message)
 
-def process_message(message_json):
-    print("receive " + message_json)
-    pass
+    def process_event(self, event):
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
+            self.process_message(event.user_id, event.text)
+
+    def process_callback(self, message_json):
+        print("receive " + message_json)
+        if 'type' not in message_json.keys():
+            return 'not vk'
+        if message_json['type'] == 'confirmation':
+            return self.config.get_confirm_secret()
+        elif message_json['type'] == 'message_new':
+            # self.process_message(event.user_id, event.text)
+            return 'ok'
 
 if __name__ == "__main__":
-    clients_table = {}
-
+    bot = moonBot()
     vk_session = vk_api.VkApi(token='48acd070c2f03c468317f6d855616f3017dee55f138cf3850bf37e6cf360d5f9d8a471bd8b7edf2e93a89')
 
     longpoll = VkLongPoll(vk_session)
     vk = vk_session.get_api()
     for event in longpoll.listen():
-        process_event(event, clients_table)
+        bot.process_event(event)
