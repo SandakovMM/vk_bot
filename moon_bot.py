@@ -119,10 +119,8 @@ class Booking:
         self.time = None
 
 class User:
-    def __init__(self, user_id):
+    def __init__(self, user_id, user_profile):
         self.user_id = user_id
-        user_profile = vk.users.get(user_id = self.user_id)
-
         self.first_name = user_profile[0]['first_name']
         self.phone      = None
         self.state      = States.INITIAL
@@ -131,13 +129,13 @@ class User:
         self.prepare_booking = None
 
     def send_greetings(self):
+        self.state = States.ASK_FOR_NUMBER
+
         message_to_send  = '{}, здравствуйте.\n'.format(self.first_name)
         message_to_send += 'Ваш подарочный сертификат ниже \U0001F381\n'
         message_to_send += 'Напишите, пожалуйста, ваш номер телефона, чтобы мы могли забронировать за вами купон \U0001F609'
-        vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = message_to_send,
-                         attachment= 'photo-126180933_456239557')
+        return { 'message': message_to_send,
+                 'attachment' : 'photo-126180933_456239557' }
 
         # Как это сделать?
         # sleep(0.1)
@@ -147,109 +145,100 @@ class User:
         # vk.message.send(user_id    = self.user_id,
         #                 random_id  = get_random_id(),
         #                 message    = 'https://disgustingmen.com/wp-content/uploads/2019/02/120-1024x586.jpg')
-        self.state = States.ASK_FOR_NUMBER
 
-    def receive_number(self, event):
+    def receive_number(self, message):
 
-        if not is_mobile_number(event.text):
-            vk.messages.send(user_id   = self.user_id,
-                             random_id = get_random_id(),
-                             message   = 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655')
-            return
+        if not is_mobile_number(message):
+            return { 'message': 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655' }
 
-        self.phone = event.text
+        self.phone = message
+        self.state = States.ASK_FOR_SERVICE
 
         message_to_send  = 'Записали!\n'
         message_to_send  += '{}, какая услуга вас интересует?\n'.format(self.first_name)
         message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
-        vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = message_to_send,
-                         keyboard  = str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)))
+        return { 'message': message_to_send,
+                 'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
 
-        self.state = States.ASK_FOR_SERVICE
+    def receive_service_type(self, message):
 
-    def receive_service_type(self, event):
-
-        if not is_valid_service(event.text):
-            vk.messages.send(user_id   = self.user_id,
-                             random_id = get_random_id(),
-                             message   = 'Пожалуйста, выбирите один из предложеных вариантов')
-            return
+        if not is_valid_service(message):
+            return { 'message': 'Пожалуйста, выбирите один из предложеных вариантов' }
 
         self.prepare_booking = Booking()
-        self.prepare_booking.type = event.text
+        self.prepare_booking.type = message
+        self.state = States.ASK_FOR_DAY
 
         message_to_send  = 'Спасибо)\n'
         message_to_send  += 'В какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'
-        vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = message_to_send)
+        return { 'message': message_to_send }
 
-        self.state = States.ASK_FOR_DAY
+    def receive_service_day(self, message):
 
-    def receive_service_day(self, event):
+        if not is_valid_time(message):
+            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00' }
 
-        if not is_valid_time(event.text):
-            vk.messages.send(user_id   = self.user_id,
-                             random_id = get_random_id(),
-                             message   = 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00')
-            return
+        if not is_time_free(message):
+            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00' }
 
-        if not is_time_free(event.text):
-            vk.messages.send(user_id   = self.user_id,
-                             random_id = get_random_id(),
-                             message   = 'К сожалению данное время уже занято, выбирите другое')
-            return
-
-        self.prepare_booking.time = event.text
+        self.prepare_booking.time = message
         self.ready_bookings.append(self.prepare_booking)
 
         message_to_send  = 'Все готово, ура!\n'
         message_to_send += 'Ждем вас {} на процедуре {}! \U00002764\n'.format(self.prepare_booking.time,
                                                                              self.prepare_booking.type)
-        vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = message_to_send)
-
         self.state = States.KNOWN
 
-    def send_old_friend(self):
-        vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = self.first_name + ', я тебя узнал!')
-        self.state = States.INITIAL
+        return { 'message': message_to_send }
 
-    def make_answer(self, event):
-        try:
-            if States.INITIAL == self.state:
-                self.send_greetings()
-            elif States.ASK_FOR_NUMBER == self.state:
-                self.receive_number(event)
-            elif States.ASK_FOR_SERVICE == self.state:
-                self.receive_service_type(event)
-            elif States.ASK_FOR_DAY == self.state:
-                self.receive_service_day(event)
-            else:
-                self.send_old_friend()
-        except vk_api.exceptions.ApiError as err:
-            print(err)
-            vk.messages.send(user_id   = self.user_id,
-                         random_id = get_random_id(),
-                         message   = self.first_name + ', чет не смогла, попробуй еще раз!')
+    def send_old_friend(self):
+        self.state = States.INITIAL
+        return { 'message': 'Я тебя узнал!' }
+
+    def create_answer_message(self, message):
+        if States.INITIAL == self.state:
+            return self.send_greetings()
+        elif States.ASK_FOR_NUMBER == self.state:
+            return self.receive_number(message)
+        elif States.ASK_FOR_SERVICE == self.state:
+            return self.receive_service_type(message)
+        elif States.ASK_FOR_DAY == self.state:
+            return self.receive_service_day(message)
+        else:
+            return self.send_old_friend()
+
+        return { 'message': 'Привет!' }
 
 class moonBot:
     def __init__(self):
         self.clients_table = {}
         self.config = Configuration('conf.json')
 
+        self.vk_session = vk_api.VkApi(token=self.config.get_api_secret())
+        self.vk = self.vk_session.get_api()
+
+    def make_answer(self, user, message):
+        answer = user.create_answer_message(message)
+
+        try:
+            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
+                                  message    = answer['message'],
+                                  attachment = answer['attachment'],
+                                  keyboard   = answer['keyboard'])
+        except vk_api.exceptions.ApiError as err:
+            print(err)
+            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
+                                  message = user.first_name + ', чет не смогла, попробуй еще раз!')
+
+
     def process_message(self, user_id, message):
         user = self.clients_table.get(user_id)
         if None == user:
-            user = User(user_id)
+            user_profile = self.vk.users.get(user_id = user_id)
+            user = User(user_id, user_profile)
             self.clients_table[user_id] = user
 
-        user.make_answer(message)
+        self.make_answer(user, message)
 
     def process_event(self, event):
         if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
@@ -266,11 +255,10 @@ class moonBot:
                                  request_json['object']['text'])
             return 'ok'
 
-if __name__ == "__main__":
-    bot = moonBot()
-    vk_session = vk_api.VkApi(token='48acd070c2f03c468317f6d855616f3017dee55f138cf3850bf37e6cf360d5f9d8a471bd8b7edf2e93a89')
+# if __name__ == "__main__":
+#     bot = moonBot()
 
-    longpoll = VkLongPoll(vk_session)
-    vk = vk_session.get_api()
-    for event in longpoll.listen():
-        bot.process_event(event)
+#     longpoll = VkLongPoll(vk_session)
+#     vk = vk_session.get_api()
+#     for event in longpoll.listen():
+#         bot.process_event(event)
