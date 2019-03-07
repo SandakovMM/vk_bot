@@ -252,7 +252,7 @@ class User:
         elif States.ASK_FOR_DAY == self.state:
             return self.receive_service_day(message)
         elif States.ASK_FOR_REPEAD == self.state:
-
+            return self.receive_repead(message)
         else:
             return self.send_old_friend()
 
