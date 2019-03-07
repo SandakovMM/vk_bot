@@ -289,11 +289,11 @@ class moonBot:
         if request_json['type'] == 'confirmation':
             return self.config.get_confirm_secret()
         elif request_json['type'] == 'group_join':
-
+            self.process_join(request_json['object']['user_id'])
         elif request_json['type'] == 'message_new':
             self.process_message(request_json['object']['from_id'],
                                  request_json['object']['text'])
-            return 'ok'
+        return 'ok'
 
 if __name__ == "__main__":
     bot = moonBot()
