@@ -232,6 +232,18 @@ class moonBot:
         self.vk_session = vk_api.VkApi(token=self.config.get_api_secret())
         self.vk = self.vk_session.get_api()
 
+    def make_greetings(self, user):
+        answer = user.send_greetings()
+        try:
+            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
+                                  message    = answer.get('message'),
+                                  attachment = answer.get('attachment'),
+                                  keyboard   = answer.get('keyboard'))
+        except vk_api.exceptions.ApiError as err:
+            print(err)
+            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
+                                  message = user.first_name + ', чет не смогла, попробуй еще раз!')
+
     def make_answer(self, user, message):
         answer = user.create_answer_message(message)
 
@@ -245,6 +257,17 @@ class moonBot:
             self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
                                   message = user.first_name + ', чет не смогла, попробуй еще раз!')
 
+
+    def process_join(self, user_id):
+        user = self.clients_table.get(user_id)
+        if None != user:
+            self.make_greetings(user) # <-- remove it later
+            return # Already known user - don't do anything
+
+        user_profile = self.vk.users.get(user_id = user_id)
+        user = User(user_id, user_profile)
+        self.clients_table[user_id] = user
+        self.make_greetings(user)
 
     def process_message(self, user_id, message):
         user = self.clients_table.get(user_id)
@@ -265,6 +288,8 @@ class moonBot:
             return 'not vk'
         if request_json['type'] == 'confirmation':
             return self.config.get_confirm_secret()
+        elif request_json['type'] == 'group_join':
+
         elif request_json['type'] == 'message_new':
             self.process_message(request_json['object']['from_id'],
                                  request_json['object']['text'])
