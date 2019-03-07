@@ -55,6 +55,7 @@ class States(Enum):
     ASK_FOR_SERVICE = 3
     ASK_FOR_DAY     = 4
     KNOWN           = 5
+    ASK_FOR_REPEAD  = 6
 
 KEYBOARD_STEP_1 = {
     'one_time': False,
@@ -86,6 +87,25 @@ def create_buttons():
     KEYBOARD_STEP_1['buttons'].append(store_array) # Last step
 
 create_buttons()
+
+YES_NO_KEYBORD = {
+    'one_time': False,
+    'buttons': [
+        {'action': {
+            'type': 'text',
+            'payload': json.dumps({'buttons': 1}),
+            'label': 'Да',
+        },
+        'color': 'positive'},
+
+        {'action': {
+            'type': 'text',
+            'payload': json.dumps({'buttons': 2}),
+            'label': 'Нет',
+        },
+        'color': 'negative'}
+    ]
+}
 
 # def test_is_mobile_number():
 #     print(is_mobile_number('rrasastrt'))
@@ -162,7 +182,7 @@ class User:
         self.state = States.ASK_FOR_SERVICE
 
         message_to_send  = 'Записали!\n'
-        message_to_send  += '{}, какая услуга вас интересует?\n'.format(self.first_name)
+        message_to_send += '{}, какая услуга вас интересует?\n'.format(self.first_name)
         message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
         return { 'message': message_to_send,
                  'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
@@ -205,8 +225,22 @@ class User:
         return { 'message': message_to_send }
 
     def send_old_friend(self):
-        self.state = States.INITIAL
-        return { 'message': 'Я тебя узнал!' }
+        self.state = States.ASK_FOR_REPEAD
+        return { 'message': 'Привет! Хочешь забронировать какую-то процедуру?',
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+
+    def receive_repead(self, message):
+        if 'Да' == message:
+            self.state = States.ASK_FOR_SERVICE
+
+            message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
+            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
+            return { 'message': message_to_send,
+                     'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
+
+        self.state = States.KNOWN
+        return { 'message': 'Может быть в следующий раз =)',
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
 
     def create_answer_message(self, message):
         if States.INITIAL == self.state:
@@ -217,6 +251,8 @@ class User:
             return self.receive_service_type(message)
         elif States.ASK_FOR_DAY == self.state:
             return self.receive_service_day(message)
+        elif States.ASK_FOR_REPEAD == self.state:
+
         else:
             return self.send_old_friend()
 
