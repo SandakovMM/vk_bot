@@ -2,7 +2,7 @@ from enum import Enum
 import json
 import requests
 from time import sleep
-import datetime
+from datetime import datetime, timedelta
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -122,7 +122,7 @@ def is_valid_service(string):
 #     print(parce_time('11.12.2019 11:20'))
 
 def parce_time(string):
-    return datetime.datetime.strptime(string, '%d.%m.%Y %H:%M')
+    return datetime.strptime(string, '%d.%m.%Y %H:%M')
 
 def is_time_free(string):
     return True
@@ -133,7 +133,7 @@ class Booking:
         self.time = None
 
 class User:
-    def __init__(self, user_id, user_profile):
+    def __init__(self, user_id, user_profile, parant_bot):
         self.user_id = user_id
         self.first_name = user_profile[0]['first_name']
         self.phone      = None
@@ -141,6 +141,8 @@ class User:
 
         self.ready_bookings  = []
         self.prepare_booking = None
+
+        self.parant_bot = parant_bot
 
     def send_greetings(self):
         self.state = States.ASK_FOR_NUMBER
@@ -150,15 +152,6 @@ class User:
         message_to_send += 'Напишите, пожалуйста, ваш номер телефона, чтобы мы могли забронировать за вами купон \U0001F609'
         return { 'message': message_to_send,
                  'attachment' : 'photo-126180933_456239557' }
-
-        # Как это сделать?
-        # sleep(0.1)
-        # vk.message.send(user_id    = self.user_id,
-        #                 random_id  = get_random_id(),
-        #                 message    = 'Лолируем')
-        # vk.message.send(user_id    = self.user_id,
-        #                 random_id  = get_random_id(),
-        #                 message    = 'https://disgustingmen.com/wp-content/uploads/2019/02/120-1024x586.jpg')
 
     def receive_number(self, message):
 
@@ -191,17 +184,22 @@ class User:
         try:
             geted_time = parce_time(message)
         except ValueError:
-            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 в 12:00' }
+            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 12:00' }
 
-        if not is_time_free(message):
-            return { 'message': 'К сожалению данное время уже занято =(' }
+        if not self.parant_bot.check_time_free(geted_time):
+            free_time = self.parant_bot.find_close_free_time(geted_time)
+            message_to_send = 'К сожалению данное время уже занято =('
+            if None != free_time:
+                message_to_send += ' Ближайшее свободное время {}'.format(free_time)
 
-        self.prepare_booking.time = message
+            return { 'message': message_to_send }
+
+        self.prepare_booking.time = geted_time
         self.ready_bookings.append(self.prepare_booking)
 
         message_to_send  = 'Все готово, ура!\n'
         message_to_send += 'Ждем вас {} на процедуре {}! \U00002764\n'.format(self.prepare_booking.time,
-                                                                             self.prepare_booking.type)
+                                                                              self.prepare_booking.type)
         self.state = States.KNOWN
 
         return { 'message': message_to_send }
@@ -224,6 +222,17 @@ class User:
 
         return { 'message': 'Привет!' }
 
+    def use_this_time(self, time):
+        for booking in self.ready_bookings:
+            end_time = booking.time + timedelta(minutes = 15)
+            if time >= booking.time and time <= end_time:
+                return True
+
+            new_procedure_end_time = time + timedelta(minutes = 15)
+            if booking.time >= time and booking.time <= new_procedure_end_time:
+                return True
+        return False
+
 class moonBot:
     def __init__(self):
         self.clients_table = {}
@@ -231,6 +240,25 @@ class moonBot:
 
         self.vk_session = vk_api.VkApi(token=self.config.get_api_secret())
         self.vk = self.vk_session.get_api()
+
+    def check_time_free(self, time):
+        for _, client in self.clients_table.items():
+            if client.use_this_time(time):
+                return False
+        return True
+
+    def find_close_free_time(self, time):
+        next_time = prev_time = time
+        for _ in range(1, 60):
+            next_time = next_time + timedelta(minutes = 1)
+            if self.check_time_free(next_time):
+                return next_time
+
+            prev_time = prev_time - timedelta(minutes = 1)
+            if self.check_time_free(prev_time):
+                return prev_time
+
+        return None
 
     def make_greetings(self, user):
         answer = user.send_greetings()
@@ -265,7 +293,7 @@ class moonBot:
             return # Already known user - don't do anything
 
         user_profile = self.vk.users.get(user_id = user_id)
-        user = User(user_id, user_profile)
+        user = User(user_id, user_profile, self)
         self.clients_table[user_id] = user
         self.make_greetings(user)
 
@@ -273,7 +301,7 @@ class moonBot:
         user = self.clients_table.get(user_id)
         if None == user:
             user_profile = self.vk.users.get(user_id = user_id)
-            user = User(user_id, user_profile)
+            user = User(user_id, user_profile, self)
             self.clients_table[user_id] = user
 
         self.make_answer(user, message)
