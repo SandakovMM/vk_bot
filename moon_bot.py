@@ -1,6 +1,9 @@
 from enum import Enum
+import copy
+
 import json
 import requests
+
 from time import sleep
 from datetime import datetime, timedelta
 
@@ -10,81 +13,114 @@ from vk_api.utils import get_random_id
 
 from configuration import Configuration
 
-SERVICE_SET = {
-    'services': [
-        { 'type': 'Глубокое бикини',        'price':  600 },
-        { 'type': 'Классическое бикини',    'price':  450 },
-        { 'type': 'Голень с коленом/бедра', 'price':  550 },
-        { 'type': 'Ноги полностью',         'price': 1000 },
-        { 'type': 'Любая зона на лице',     'price':  200 },
-        { 'type': 'Спина/живот(полностью)', 'price':  600 },
-        { 'type': 'Руки до локтя',          'price':  450 },
-        { 'type': 'Руки полностью',         'price':  600 },
-        { 'type': 'Подмышки',               'price':  200 },
+SERVICE_TYPES = [ 'Сахарная депиляция', 'Брови', 'Ресницы']
 
-        { 'type'   : 'Комбо 1',
+SERVICE_SET = {
+    'Сахарная депиляция': [
+        { 'name' : 'Глубокое бикини',
+          'price':  600 },
+        { 'name' : 'Классическое бикини',
+          'price':  450 },
+        { 'name' : 'Голень с коленом/бедра',
+          'price':  550 },
+        { 'name' : 'Ноги полностью',
+          'price': 1000 },
+        { 'name' : 'Любая зона на лице',
+          'price':  200 },
+        { 'name' : 'Спина/живот(полностью)',
+          'price':  600 },
+        { 'name' : 'Руки до локтя',
+          'price':  450 },
+        { 'name' : 'Руки полностью',
+          'price':  600 },
+        { 'name' : 'Подмышки',
+          'price':  200 },
+
+        { 'name'   : 'Комбо 1',
           'price'  :  900,
           'details': 'Глубокое бикини + голень (с коленом)'},
-        { 'type'   : 'Комбо 2',
+        { 'name'   : 'Комбо 2',
           'price'  : 1100,
           'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'type'   : 'Комбо 3',
+        { 'name'   : 'Комбо 3',
           'price'  : 1300,
           'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'type'   : 'Комбо 4',
+        { 'name'   : 'Комбо 4',
           'price'  : 1500,
           'details': 'глубокое бикини + ножки полностью + подмышечные впадины'},
-        { 'type'   : 'Комбо 5',
+        { 'name'   : 'Комбо 5',
           'price'  : 2000,
           'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-
-        { 'type': 'Оформление бровей + окрашивание краской', 'price': 400 },
-        { 'type': 'Оформление бровей + окрашивание хной',    'price': 600 },
-        { 'type': 'Долговременная укладка бровей',
+    ],
+    'Брови': [
+        { 'name' : 'Оформление бровей + окрашивание краской',
+          'price': 400 },
+        { 'name' : 'Оформление бровей + окрашивание хной',
+          'price': 600 },
+        { 'name' : 'Долговременная укладка бровей',
           'price':  550,
           'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-
-        { 'type': 'Реконструкция ресниц Velve',             'price': 1500 },
-        { 'type': 'Реконструкция ресниц Velvet + BOTOX 3D', 'price': 1700 },
-    ]
+    ],
+    'Ресницы': [
+        { 'name' : 'Реконструкция ресниц Velve',
+          'price': 1500 },
+        { 'name' : 'Реконструкция ресниц Velvet + BOTOX 3D',
+          'price': 1700 },
+    ],
 }
 
 class States(Enum):
-    INITIAL         = 1
-    ASK_FOR_NUMBER  = 2
-    ASK_FOR_SERVICE = 3
-    ASK_FOR_DAY     = 4
-    KNOWN           = 5
-    ASK_FOR_REPEAD  = 6
+    INITIAL              = 1
+    ASK_FOR_NUMBER       = 2
+    ASK_FOR_SERVICE      = 3
+    ASK_FOR_DAY          = 4
+    KNOWN                = 5
+    ASK_FOR_REPEAD       = 6
+    ASK_FOR_SERVICE_TYPE = 7
 
-KEYBOARD_STEP_1 = {
+KEYBOARD_SERVICE_TYPE = {
     'one_time': True,
     'buttons': []
 }
 
-def create_buttons():
+KEYBOARDS_SERVICES_BY_TYPE = { }
+
+KEYBOARD_SERVICES = {
+    'one_time': True,
+    'buttons': []
+}
+
+def fill_buttons_from_data(buttons, data, data_extract_fn):
     array_pos = 1
     store_array = []
 
-    for service in SERVICE_SET['services']:
+    for element in data:
         store_array.append(
             {'action': {
                 'type': 'text',
                 'payload': json.dumps({'buttons': array_pos}),
-                'label': service['type'],
+                'label': data_extract_fn(element),
             },
             'color': 'primary'})
 
         array_pos += 1
 
         if 0 == array_pos % 5:
-            KEYBOARD_STEP_1['buttons'].append(store_array)
+            buttons['buttons'].append(store_array)
             store_array = []
             array_pos = 1
 
-        # print("Услуга {} с ценой {}".format(service['type'], service['price']))
+    buttons['buttons'].append(store_array)
 
-    KEYBOARD_STEP_1['buttons'].append(store_array) # Last step
+def create_buttons():
+    fill_buttons_from_data(KEYBOARD_SERVICE_TYPE, SERVICE_TYPES,
+                           lambda data_element: data_element)
+
+    for service_type in SERVICE_TYPES:
+        type_keyboard = copy.deepcopy(KEYBOARD_SERVICES)
+        fill_buttons_from_data(type_keyboard, SERVICE_SET[service_type],
+                           lambda data_element: data_element['name'])
+        KEYBOARDS_SERVICES_BY_TYPE[service_type] = type_keyboard
 
 create_buttons()
 
@@ -132,10 +168,17 @@ def is_mobile_number(string):
         return True
     return False
 
+def extract_service_type(string):
+    for service_type in SERVICE_TYPES:
+        if string == service_type:
+            return service_type
+    return None
+
 def is_valid_service(string):
-    for service in SERVICE_SET['services']:
-        if string == service['type']:
-            return True
+    for _, services_by_type in SERVICE_SET.items():
+        for service in services_by_type:
+            if string == service['name']:
+                return True
     return False
 
 # def test_parce_time():
@@ -179,15 +222,28 @@ class User:
             return { 'message': 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655' }
 
         self.phone = message
-        self.state = States.ASK_FOR_SERVICE
+        self.state = States.ASK_FOR_SERVICE_TYPE
 
         message_to_send  = 'Записали!\n'
-        message_to_send += '{}, какая услуга вас интересует?\n'.format(self.first_name)
-        message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
+        message_to_send += '{}, какой вид услуги вас интересует?\n'.format(self.first_name)
+        message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'
         return { 'message': message_to_send,
-                 'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
+                 'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
 
     def receive_service_type(self, message):
+
+        service_type = extract_service_type(message)
+        if None == service_type:
+            return self.receive_service(message)
+
+        self.state = States.ASK_FOR_SERVICE
+
+        message_to_send = 'Хорошо, выберите пожалуйста одину из услуг\n'
+        return { 'message': message_to_send,
+                 'keyboard' : str(json.dumps(KEYBOARDS_SERVICES_BY_TYPE[service_type],
+                                  ensure_ascii=False)) }
+
+    def receive_service(self, message):
 
         if not is_valid_service(message):
             return { 'message': 'Пожалуйста, выбирите один из предложеных вариантов' }
@@ -236,7 +292,7 @@ class User:
             message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
             message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
             return { 'message': message_to_send,
-                     'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
+                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
 
         self.state = States.KNOWN
         return { 'message': 'Может быть в следующий раз =)' }
