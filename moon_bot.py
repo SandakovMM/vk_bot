@@ -77,6 +77,7 @@ class States(Enum):
     KNOWN                = 5
     ASK_FOR_REPEAD       = 6
     ASK_FOR_SERVICE_TYPE = 7
+    ASK_FOR_ANOTHER_SERV = 8
 
 KEYBOARD_SERVICE_TYPE = {
     'one_time': True,
@@ -250,10 +251,23 @@ class User:
 
         self.prepare_booking = Booking()
         self.prepare_booking.type = message
-        self.state = States.ASK_FOR_DAY
+        self.state = States.ASK_FOR_ANOTHER_SERV
 
-        message_to_send  = 'Спасибо)\n'
-        message_to_send  += 'В какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'
+        message_to_send  = 'Спасибо) Хотите добавить еще услугу?\n'
+        return { 'message': message_to_send,
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+
+    def receive_add_more(self, message):
+        if 'Да' == message:
+            self.state = States.ASK_FOR_SERVICE_TYPE
+
+            message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
+            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
+            return { 'message': message_to_send,
+                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
+
+        self.state = States.ASK_FOR_DAY
+        message_to_send = 'В какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'
         return { 'message': message_to_send }
 
     def receive_service_day(self, message):
@@ -287,7 +301,7 @@ class User:
 
     def receive_repead(self, message):
         if 'Да' == message:
-            self.state = States.ASK_FOR_SERVICE
+            self.state = States.ASK_FOR_SERVICE_TYPE
 
             message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
             message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
@@ -306,6 +320,8 @@ class User:
             return self.receive_service_type(message)
         elif States.ASK_FOR_SERVICE == self.state:
             return self.receive_service(message)
+        elif States.ASK_FOR_ANOTHER_SERV == self.state:
+            return self.receive_add_more(message)
         elif States.ASK_FOR_DAY == self.state:
             return self.receive_service_day(message)
         elif States.ASK_FOR_REPEAD == self.state:
