@@ -58,7 +58,7 @@ class States(Enum):
     ASK_FOR_REPEAD  = 6
 
 KEYBOARD_STEP_1 = {
-    'one_time': False,
+    'one_time': True,
     'buttons': []
 }
 
@@ -89,8 +89,8 @@ def create_buttons():
 create_buttons()
 
 YES_NO_KEYBORD = {
-    'one_time': False,
-    'buttons': [
+    'one_time': True,
+    'buttons': [[
         {'action': {
             'type': 'text',
             'payload': json.dumps({'buttons': 1}),
@@ -104,7 +104,7 @@ YES_NO_KEYBORD = {
             'label': 'Нет',
         },
         'color': 'negative'}
-    ]
+    ]]
 }
 
 # def test_is_mobile_number():
@@ -239,8 +239,7 @@ class User:
                      'keyboard' : str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)) }
 
         self.state = States.KNOWN
-        return { 'message': 'Может быть в следующий раз =)',
-                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+        return { 'message': 'Может быть в следующий раз =)' }
 
     def create_answer_message(self, message):
         if States.INITIAL == self.state:

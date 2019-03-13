@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
 import unittest
-from moon_bot import moonBot, User
+import json
+from moon_bot import *
 
 class TestMoonBot(unittest.TestCase):
     def setUp(self):
@@ -33,6 +34,16 @@ class TestUserAnswers(unittest.TestCase):
         self.assertEqual(test_user.receive_service_day('11.12.2019 11:21'),
                          {'message': 'К сожалению данное время уже занято =( Ближайшее свободное время 2019-12-11 11:04:00'})
 
+
+# class KeyboardCreateTest(unittest.TestCase):
+#     def setUp(self):
+#         pass
+
+    # def test_yes_no_keyboard_format(self):
+    #     print(str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)))
+
+    # def test_service_keyboard_format(self):
+    #     print(str(json.dumps(KEYBOARD_STEP_1, ensure_ascii=False)))
 
 if __name__ == '__main__':
     unittest.main()
