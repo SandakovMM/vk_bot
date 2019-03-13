@@ -302,8 +302,10 @@ class User:
             return self.send_greetings()
         elif States.ASK_FOR_NUMBER == self.state:
             return self.receive_number(message)
-        elif States.ASK_FOR_SERVICE == self.state:
+        elif States.ASK_FOR_SERVICE_TYPE == self.state:
             return self.receive_service_type(message)
+        elif States.ASK_FOR_SERVICE == self.state:
+            return self.receive_service(message)
         elif States.ASK_FOR_DAY == self.state:
             return self.receive_service_day(message)
         elif States.ASK_FOR_REPEAD == self.state:
