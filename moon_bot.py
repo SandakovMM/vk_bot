@@ -144,14 +144,6 @@ YES_NO_KEYBORD = {
     ]]
 }
 
-# def test_is_mobile_number():
-#     print(is_mobile_number('rrasastrt'))
-#     print(is_mobile_number('+79137678498'))
-#     print(is_mobile_number('89137678498'))
-#     print(is_mobile_number('891376784q8'))
-#     print(is_mobile_number('+791376784q8'))
-#     print(is_mobile_number('+7913767849844'))
-
 def is_mobile_number(string):
     length = len(string)
     if 12 != length and 11 != length:
@@ -182,9 +174,6 @@ def is_valid_service(string):
                 return True
     return False
 
-# def test_parce_time():
-#     print(parce_time('11.12.2019 11:20'))
-
 def parce_time(string):
     return datetime.strptime(string, '%d.%m.%Y %H:%M')
 
@@ -197,7 +186,7 @@ class Booking:
         self.time     = None
 
 class User:
-    def __init__(self, user_id, user_profile, parant_bot):
+    def __init__(self, user_id, user_profile, parant_bot, gift = False):
         self.user_id = user_id
         self.first_name = user_profile[0]['first_name']
         self.phone      = None
@@ -207,15 +196,24 @@ class User:
         self.prepare_booking = None
 
         self.parant_bot = parant_bot
+        self.gift_geted = gift
 
     def send_greetings(self):
         self.state = States.ASK_FOR_NUMBER
 
-        message_to_send  = '{}, здравствуйте.\n'.format(self.first_name)
-        message_to_send += 'Ваш подарочный сертификат ниже \U0001F381\n'
-        message_to_send += 'Напишите, пожалуйста, ваш номер телефона, чтобы мы могли забронировать за вами купон \U0001F609'
-        return { 'message': message_to_send,
-                 'attachment' : 'photo-126180933_456239557' }
+        addition_msg_one = ''
+        addition_msg_two = '.'
+        if self.gift_geted:
+            addition_msg_one = 'Ваш подарочный сертификат ниже \U0001F381\n'
+            addition_msg_two = ', чтобы мы могли забронировать за вами купон \U0001F609'
+
+        message_to_send = '{}, здравствуйте.\n{}Напишите, пожалуйста, ваш номер телефона{}'.format(self.first_name,
+            addition_msg_one, addition_msg_two)
+
+        answer = { 'message': message_to_send }
+        if self.gift_geted:
+            answer['attachment'] = 'photo-126180933_456239557'
+        return answer
 
     def receive_number(self, message):
 
@@ -418,7 +416,7 @@ class moonBot:
             return # Already known user - don't do anything
 
         user_profile = self.vk.users.get(user_id = user_id)
-        user = User(user_id, user_profile, self)
+        user = User(user_id, user_profile, self, self.config.make_gifts)
         self.clients_table[user_id] = user
         self.make_greetings(user)
 
@@ -426,7 +424,7 @@ class moonBot:
         user = self.clients_table.get(user_id)
         if None == user:
             user_profile = self.vk.users.get(user_id = user_id)
-            user = User(user_id, user_profile, self)
+            user = User(user_id, user_profile, self, self.config.make_gifts)
             self.clients_table[user_id] = user
 
         self.make_answer(user, message)

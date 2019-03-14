@@ -9,6 +9,7 @@ class Configuration:
             self.api_vk_secret     = configuration['api_secret']
             self.confirm_vk_secret = configuration['confirm_secret']
             self.bot_module        = configuration['bot_module']
+            self.make_gifts        = configuration['make_gifts']
         except:
             print('Configuration file conf.json does not exist. Create it')
             exit(0)

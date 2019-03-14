@@ -16,6 +16,7 @@ class TestUserAnswers(unittest.TestCase):
     def setUp(self):
         self.moonBot = moonBot()
         self.moonBot.clients_table[1] = User(1, [{'first_name':'test_user'}], self.moonBot)
+        self.moonBot.clients_table[2] = User(2, [{'first_name':'sec_user'}],  self.moonBot, gift=True)
 
     def test_time_checking(self):
         test_user = self.moonBot.clients_table[1]
@@ -46,6 +47,34 @@ class TestUserAnswers(unittest.TestCase):
 
         self.assertEqual(test_user.receive_service_day('11.12.2019 11:21'),
                          {'message': 'Все готово, ура!\nЖдем вас 2019-12-11 11:21:00 на процедурах Комбо 1, Комбо 2 и Комбо 3! ❤\n'})
+
+    def test_add_or_not_gift(self):
+        self.assertEqual(self.moonBot.clients_table[1].send_greetings()['message'],
+                         'test_user, здравствуйте.\nНапишите, пожалуйста, ваш номер телефона.')
+        self.assertEqual(self.moonBot.clients_table[2].send_greetings()['message'],
+                         'sec_user, здравствуйте.\nВаш подарочный сертификат ниже \U0001F381\nНапишите, пожалуйста, ваш номер телефона, чтобы мы могли забронировать за вами купон \U0001F609')
+
+class TestMobileNumberChecks(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_letters_noly(self):
+        self.assertEqual(False, is_mobile_number('rrasastrt'))
+
+    def test_normal_number(self):
+        self.assertEqual(True, is_mobile_number('+79134448855'))
+
+    def test_normal_number_other_start(self):
+        self.assertEqual(True, is_mobile_number('89134448855'))
+
+    def test_one_letter_in(self):
+        self.assertEqual(False, is_mobile_number('+791344488q5'))
+
+    def test_one_letter_in_other_start(self):
+        self.assertEqual(False, is_mobile_number('891344488q5'))
+
+    def test_too_many(self):
+        self.assertEqual(False, is_mobile_number('+791344488555'))
 
 
 class KeyboardCreateTest(unittest.TestCase):
