@@ -75,7 +75,7 @@ class States(Enum):
     ASK_FOR_SERVICE      = 3
     ASK_FOR_DAY          = 4
     KNOWN                = 5
-    ASK_FOR_REPEAD       = 6
+    ASK_FOR_NEED_BOOKING = 6
     ASK_FOR_SERVICE_TYPE = 7
     ASK_FOR_ANOTHER_SERV = 8
 
@@ -193,8 +193,8 @@ def is_time_free(string):
 
 class Booking:
     def __init__(self):
-        self.type = None
-        self.time = None
+        self.services = []
+        self.time     = None
 
 class User:
     def __init__(self, user_id, user_profile, parant_bot):
@@ -223,13 +223,30 @@ class User:
             return { 'message': 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655' }
 
         self.phone = message
-        self.state = States.ASK_FOR_SERVICE_TYPE
 
-        message_to_send  = 'Записали!\n'
-        message_to_send += '{}, какой вид услуги вас интересует?\n'.format(self.first_name)
-        message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'
-        return { 'message': message_to_send,
-                 'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
+        answer = self.send_is_booking_needed()
+        answer['message'] = 'Записали!\n' + answer['message']
+        return answer
+
+    def send_is_booking_needed(self):
+        self.state = States.ASK_FOR_NEED_BOOKING
+        return { 'message': 'Хотите забронировать какую-то процедуру?',
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+
+    def receive_booking_needed(self, message):
+        if 'Да' == message:
+            self.state = States.ASK_FOR_SERVICE_TYPE
+
+            self.prepare_booking = Booking()
+
+            message_to_send = '{}, какой вид услуги вас интересует?\n'.format(self.first_name)
+            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'
+
+            return { 'message': message_to_send,
+                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
+
+        self.state = States.KNOWN
+        return { 'message': 'Может быть в следующий раз =)' }
 
     def receive_service_type(self, message):
 
@@ -249,8 +266,7 @@ class User:
         if not is_valid_service(message):
             return { 'message': 'Пожалуйста, выбирите один из предложеных вариантов' }
 
-        self.prepare_booking = Booking()
-        self.prepare_booking.type = message
+        self.prepare_booking.services.append(message)
         self.state = States.ASK_FOR_ANOTHER_SERV
 
         message_to_send  = 'Спасибо) Хотите добавить еще услугу?\n'
@@ -288,28 +304,28 @@ class User:
         self.ready_bookings.append(self.prepare_booking)
 
         message_to_send  = 'Все готово, ура!\n'
-        message_to_send += 'Ждем вас {} на процедуре {}! \U00002764\n'.format(self.prepare_booking.time,
-                                                                              self.prepare_booking.type)
+
+        services_length = len(self.prepare_booking.services)
+        prov_string = 'процедуре'
+        if services_length != 1:
+            prov_string = 'процедурах'
+
+        message_to_send += 'Ждем вас {} на {}'.format(self.prepare_booking.time, prov_string)
+
+        counter = 1
+        for booking_service in self.prepare_booking.services:
+            if counter + 1 == services_length:
+                message_to_send += ' {} и'.format(booking_service)
+            elif counter == services_length:
+                message_to_send += ' {}! \U00002764\n'.format(booking_service)
+            else:
+                message_to_send += ' {},'.format(booking_service)
+
+            counter += 1
+
         self.state = States.KNOWN
 
         return { 'message': message_to_send }
-
-    def send_old_friend(self):
-        self.state = States.ASK_FOR_REPEAD
-        return { 'message': 'Привет! Хочешь забронировать какую-то процедуру?',
-                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
-
-    def receive_repead(self, message):
-        if 'Да' == message:
-            self.state = States.ASK_FOR_SERVICE_TYPE
-
-            message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
-            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
-            return { 'message': message_to_send,
-                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
-
-        self.state = States.KNOWN
-        return { 'message': 'Может быть в следующий раз =)' }
 
     def create_answer_message(self, message):
         if States.INITIAL == self.state:
@@ -324,10 +340,10 @@ class User:
             return self.receive_add_more(message)
         elif States.ASK_FOR_DAY == self.state:
             return self.receive_service_day(message)
-        elif States.ASK_FOR_REPEAD == self.state:
-            return self.receive_repead(message)
+        elif States.ASK_FOR_NEED_BOOKING == self.state:
+            return self.receive_booking_needed(message)
         else:
-            return self.send_old_friend()
+            return self.send_is_booking_needed()
 
         return { 'message': 'Привет!' }
 

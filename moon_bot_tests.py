@@ -19,11 +19,13 @@ class TestUserAnswers(unittest.TestCase):
 
     def test_time_checking(self):
         test_user = self.moonBot.clients_table[1]
-        self.assertEqual(test_user.receive_service_type('Комбо 1'),
-                         {'message': 'Спасибо)\nВ какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'})
+        test_user.receive_booking_needed('Да')
+        self.assertEqual(test_user.receive_service_type('Комбо 1')['message'],
+                         'Спасибо) Хотите добавить еще услугу?\n')
         self.assertEqual(test_user.receive_service_day('11.12.2019 11:20'),
                          {'message': 'Все готово, ура!\nЖдем вас 2019-12-11 11:20:00 на процедуре Комбо 1! ❤\n'})
 
+        test_user.receive_booking_needed('Да')
         test_user.receive_service_type('Комбо 2')
         self.assertEqual(test_user.receive_service_day('11.12.2019 11:21'),
                          {'message': 'К сожалению данное время уже занято =( Ближайшее свободное время 2019-12-11 11:36:00'})
@@ -33,6 +35,17 @@ class TestUserAnswers(unittest.TestCase):
         test_user.receive_service_type('Комбо 3')
         self.assertEqual(test_user.receive_service_day('11.12.2019 11:21'),
                          {'message': 'К сожалению данное время уже занято =( Ближайшее свободное время 2019-12-11 11:04:00'})
+
+    def test_show_all_services(self):
+        test_user = self.moonBot.clients_table[1]
+        test_user.receive_booking_needed('Да')
+        self.assertEqual(test_user.receive_service_type('Комбо 1')['message'],
+                         'Спасибо) Хотите добавить еще услугу?\n')
+        test_user.receive_service_type('Комбо 2')
+        test_user.receive_service_type('Комбо 3')
+
+        self.assertEqual(test_user.receive_service_day('11.12.2019 11:21'),
+                         {'message': 'Все готово, ура!\nЖдем вас 2019-12-11 11:21:00 на процедурах Комбо 1, Комбо 2 и Комбо 3! ❤\n'})
 
 
 class KeyboardCreateTest(unittest.TestCase):
