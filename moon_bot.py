@@ -378,7 +378,7 @@ class boockingBot:
             user = User(user_id, user_name, self.config.make_gifts)
             self.clients_table[user_id] = user
 
-        self.create_answer_message(user, message)
+        return self.create_answer_message(user, message)
 
 # if __name__ == "__main__":
 #     bot = moonBot()
