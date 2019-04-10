@@ -53,6 +53,9 @@ class vkMassageReceiver:
             if None == answer:
                 answer = self.process_join(user_id)
 
+        print("Send answer:")
+        print(answer)
+
         if None == answer or None == user_id:
             return 'ok' # Not ok in real
 
