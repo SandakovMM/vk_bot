@@ -2,82 +2,12 @@ from enum import Enum
 import copy
 
 import json
-import requests
 
-from time import sleep
 from datetime import datetime, timedelta
+from user import User, States
 
-import vk_api
-from vk_api.longpoll import VkLongPoll, VkEventType
-from vk_api.utils import get_random_id
-
-from configuration import Configuration
-
-SERVICE_TYPES = [ 'Сахарная депиляция', 'Брови', 'Ресницы']
-
-SERVICE_SET = {
-    'Сахарная депиляция': [
-        { 'name' : 'Глубокое бикини',
-          'price':  600 },
-        { 'name' : 'Классическое бикини',
-          'price':  450 },
-        { 'name' : 'Голень с коленом/бедра',
-          'price':  550 },
-        { 'name' : 'Ноги полностью',
-          'price': 1000 },
-        { 'name' : 'Любая зона на лице',
-          'price':  200 },
-        { 'name' : 'Спина/живот(полностью)',
-          'price':  600 },
-        { 'name' : 'Руки до локтя',
-          'price':  450 },
-        { 'name' : 'Руки полностью',
-          'price':  600 },
-        { 'name' : 'Подмышки',
-          'price':  200 },
-
-        { 'name'   : 'Комбо 1',
-          'price'  :  900,
-          'details': 'Глубокое бикини + голень (с коленом)'},
-        { 'name'   : 'Комбо 2',
-          'price'  : 1100,
-          'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'name'   : 'Комбо 3',
-          'price'  : 1300,
-          'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'name'   : 'Комбо 4',
-          'price'  : 1500,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины'},
-        { 'name'   : 'Комбо 5',
-          'price'  : 2000,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-    ],
-    'Брови': [
-        { 'name' : 'Оформление бровей + окрашивание краской',
-          'price': 400 },
-        { 'name' : 'Оформление бровей + окрашивание хной',
-          'price': 600 },
-        { 'name' : 'Долговременная укладка бровей',
-          'price':  550,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-    ],
-    'Ресницы': [
-        { 'name' : 'Реконструкция ресниц Velve',
-          'price': 1500 },
-        { 'name' : 'Реконструкция ресниц Velvet + BOTOX 3D',
-          'price': 1700 },
-    ],
-}
-
-class States(Enum):
-    INITIAL              = 1
-    ASK_FOR_NUMBER       = 2
-    ASK_FOR_SERVICE      = 3
-    ASK_FOR_DAY          = 4
-    KNOWN                = 5
-    ASK_FOR_NEED_BOOKING = 6
-    ASK_FOR_SERVICE_TYPE = 7
-    ASK_FOR_ANOTHER_SERV = 8
+SERVICE_TYPES = [ ]
+SERVICE_SET   = { }
 
 KEYBOARD_SERVICE_TYPE = {
     'one_time': True,
@@ -113,6 +43,14 @@ def fill_buttons_from_data(buttons, data, data_extract_fn):
 
     buttons['buttons'].append(store_array)
 
+def feel_service_store(service_set):
+    for service_by_type in service_set:
+        SERVICE_TYPES.append(service_by_type["service_type"])
+        set_entry = []
+        for service in service_by_type["services"]:
+            set_entry.append({"name" : service["name"]})
+        SERVICE_SET[service_by_type["service_type"]] = set_entry
+
 def create_buttons():
     fill_buttons_from_data(KEYBOARD_SERVICE_TYPE, SERVICE_TYPES,
                            lambda data_element: data_element)
@@ -122,8 +60,6 @@ def create_buttons():
         fill_buttons_from_data(type_keyboard, SERVICE_SET[service_type],
                            lambda data_element: data_element['name'])
         KEYBOARDS_SERVICES_BY_TYPE[service_type] = type_keyboard
-
-create_buttons()
 
 YES_NO_KEYBORD = {
     'one_time': True,
@@ -181,192 +117,23 @@ def is_time_free(string):
     return True
 
 class Booking:
-    def __init__(self):
+    def __init__(self, for_user):
         self.services = []
         self.time     = None
+        self.user     = for_user
 
-class User:
-    def __init__(self, user_id, user_profile, parant_bot, gift = False):
-        self.user_id = user_id
-        self.first_name = user_profile[0]['first_name']
-        self.phone      = None
-        self.state      = States.INITIAL
+class BookingStore:
+    def __init__(self):
+        self.booking_list = []
 
-        self.ready_bookings  = []
-        self.prepare_booking = None
-
-        self.parant_bot = parant_bot
-        self.gift_geted = gift
-
-    def send_greetings(self):
-        self.state = States.ASK_FOR_NUMBER
-
-        addition_msg_one = ''
-        addition_msg_two = '.'
-        if self.gift_geted:
-            addition_msg_one = 'Ваш подарочный сертификат ниже \U0001F381\n'
-            addition_msg_two = ', чтобы мы могли забронировать за вами купон \U0001F609'
-
-        message_to_send = '{}, здравствуйте.\n{}Напишите, пожалуйста, ваш номер телефона{}'.format(self.first_name,
-            addition_msg_one, addition_msg_two)
-
-        answer = { 'message': message_to_send }
-        if self.gift_geted:
-            answer['attachment'] = 'photo-126180933_456239557'
-        return answer
-
-    def receive_number(self, message):
-
-        if not is_mobile_number(message):
-            return { 'message': 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655' }
-
-        self.phone = message
-
-        answer = self.send_is_booking_needed()
-        answer['message'] = 'Записали!\n' + answer['message']
-        return answer
-
-    def send_is_booking_needed(self):
-        self.state = States.ASK_FOR_NEED_BOOKING
-        return { 'message': 'Хотите забронировать какую-то процедуру?',
-                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
-
-    def receive_booking_needed(self, message):
-        if 'Да' == message:
-            self.state = States.ASK_FOR_SERVICE_TYPE
-
-            self.prepare_booking = Booking()
-
-            message_to_send = '{}, какой вид услуги вас интересует?\n'.format(self.first_name)
-            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'
-
-            return { 'message': message_to_send,
-                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
-
-        self.state = States.KNOWN
-        return { 'message': 'Может быть в следующий раз =)' }
-
-    def receive_service_type(self, message):
-
-        service_type = extract_service_type(message)
-        if None == service_type:
-            return self.receive_service(message)
-
-        self.state = States.ASK_FOR_SERVICE
-
-        message_to_send = 'Хорошо, выберите пожалуйста одину из услуг\n'
-        return { 'message': message_to_send,
-                 'keyboard' : str(json.dumps(KEYBOARDS_SERVICES_BY_TYPE[service_type],
-                                  ensure_ascii=False)) }
-
-    def receive_service(self, message):
-
-        if not is_valid_service(message):
-            return { 'message': 'Пожалуйста, выбирите один из предложеных вариантов' }
-
-        self.prepare_booking.services.append(message)
-        self.state = States.ASK_FOR_ANOTHER_SERV
-
-        message_to_send  = 'Спасибо) Хотите добавить еще услугу?\n'
-        return { 'message': message_to_send,
-                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
-
-    def receive_add_more(self, message):
-        if 'Да' == message:
-            self.state = States.ASK_FOR_SERVICE_TYPE
-
-            message_to_send  = '{}, какая услуга вас интересует?\n'.format(self.first_name)
-            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
-            return { 'message': message_to_send,
-                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
-
-        self.state = States.ASK_FOR_DAY
-        message_to_send = 'В какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'
-        return { 'message': message_to_send }
-
-    def receive_service_day(self, message):
-        try:
-            geted_time = parce_time(message)
-        except ValueError:
-            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 12:00' }
-
-        if not self.parant_bot.check_time_free(geted_time):
-            free_time = self.parant_bot.find_close_free_time(geted_time)
-            message_to_send = 'К сожалению данное время уже занято =('
-            if None != free_time:
-                message_to_send += ' Ближайшее свободное время {}'.format(free_time)
-
-            return { 'message': message_to_send }
-
-        self.prepare_booking.time = geted_time
-        self.ready_bookings.append(self.prepare_booking)
-
-        message_to_send  = 'Все готово, ура!\n'
-
-        services_length = len(self.prepare_booking.services)
-        prov_string = 'процедуре'
-        if services_length != 1:
-            prov_string = 'процедурах'
-
-        message_to_send += 'Ждем вас {} на {}'.format(self.prepare_booking.time, prov_string)
-
-        counter = 1
-        for booking_service in self.prepare_booking.services:
-            if counter + 1 == services_length:
-                message_to_send += ' {} и'.format(booking_service)
-            elif counter == services_length:
-                message_to_send += ' {}! \U00002764\n'.format(booking_service)
-            else:
-                message_to_send += ' {},'.format(booking_service)
-
-            counter += 1
-
-        self.state = States.KNOWN
-
-        return { 'message': message_to_send }
-
-    def create_answer_message(self, message):
-        if States.INITIAL == self.state:
-            return self.send_greetings()
-        elif States.ASK_FOR_NUMBER == self.state:
-            return self.receive_number(message)
-        elif States.ASK_FOR_SERVICE_TYPE == self.state:
-            return self.receive_service_type(message)
-        elif States.ASK_FOR_SERVICE == self.state:
-            return self.receive_service(message)
-        elif States.ASK_FOR_ANOTHER_SERV == self.state:
-            return self.receive_add_more(message)
-        elif States.ASK_FOR_DAY == self.state:
-            return self.receive_service_day(message)
-        elif States.ASK_FOR_NEED_BOOKING == self.state:
-            return self.receive_booking_needed(message)
-        else:
-            return self.send_is_booking_needed()
-
-        return { 'message': 'Привет!' }
-
-    def use_this_time(self, time):
-        for booking in self.ready_bookings:
+    def check_time_free(self, time):
+        for booking in self.booking_list:
             end_time = booking.time + timedelta(minutes = 15)
             if time >= booking.time and time <= end_time:
-                return True
+                return False
 
             new_procedure_end_time = time + timedelta(minutes = 15)
             if booking.time >= time and booking.time <= new_procedure_end_time:
-                return True
-        return False
-
-class moonBot:
-    def __init__(self):
-        self.clients_table = {}
-        self.config = Configuration('conf.json')
-
-        self.vk_session = vk_api.VkApi(token=self.config.get_api_secret())
-        self.vk = self.vk_session.get_api()
-
-    def check_time_free(self, time):
-        for _, client in self.clients_table.items():
-            if client.use_this_time(time):
                 return False
         return True
 
@@ -383,73 +150,195 @@ class moonBot:
 
         return None
 
-    def make_greetings(self, user):
-        answer = user.send_greetings()
-        try:
-            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
-                                  message    = answer.get('message'),
-                                  attachment = answer.get('attachment'),
-                                  keyboard   = answer.get('keyboard'))
-        except vk_api.exceptions.ApiError as err:
-            print(err)
-            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
-                                  message = user.first_name + ', чет не смогла, попробуй еще раз!')
+    def add_bookig(self, to_add):
+        self.booking_list.append(to_add)
 
-    def make_answer(self, user, message):
-        answer = user.create_answer_message(message)
+class boockingBot:
+    def __init__(self, configuration):
+        self.booking_store   = BookingStore()
+        self.clients_table   = {}
+        self.prepare_booking = {} # store prepare booking by user_id
 
-        try:
-            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
-                                  message    = answer.get('message'),
-                                  attachment = answer.get('attachment'),
-                                  keyboard   = answer.get('keyboard'))
-        except vk_api.exceptions.ApiError as err:
-            print(err)
-            self.vk.messages.send(user_id = user.user_id, random_id = get_random_id(),
-                                  message = user.first_name + ', чет не смогла, попробуй еще раз!')
+        self.config = configuration
 
+        feel_service_store(configuration.get_service_set())
+        create_buttons()
 
-    def process_join(self, user_id):
+    def send_greetings(self, user):
+        user.state = States.ASK_FOR_NUMBER
+
+        addition_msg_one = ''
+        addition_msg_two = '.'
+        if user.is_gifted():
+            addition_msg_one = 'Ваш подарочный сертификат ниже \U0001F381\n'
+            addition_msg_two = ', чтобы мы могли забронировать за вами купон \U0001F609'
+
+        message_to_send = '{}, здравствуйте.\n{}Напишите, пожалуйста, ваш номер телефона{}'.format(user.first_name,
+                           addition_msg_one, addition_msg_two)
+
+        answer = { 'message': message_to_send }
+        if user.is_gifted():
+            answer['attachment'] = 'photo-126180933_456239557'
+        return answer
+
+    def make_greetings(self, user_id, user_name):
         user = self.clients_table.get(user_id)
         if None != user:
-            self.make_greetings(user) # <-- remove it later
+            # self.make_greetings(user) # <-- remove it later
             return # Already known user - don't do anything
 
-        user_profile = self.vk.users.get(user_id = user_id)
-        user = User(user_id, user_profile, self, self.config.make_gifts)
+        user = User(user_id, user_name, self.config.make_gifts)
         self.clients_table[user_id] = user
-        self.make_greetings(user)
+        return self.send_greetings(user)
 
-    def process_message(self, user_id, message):
+    def send_is_booking_needed(self, user):
+        user.state = States.ASK_FOR_NEED_BOOKING
+        return { 'message': 'Хотите забронировать какую-то процедуру?',
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+
+    def receive_number(self, user, message):
+
+        if not is_mobile_number(message):
+            return { 'message': 'Похоже это не номер мобильного, попробуйте другой. Пример номера: +78887776655' }
+
+        user.phone = message
+
+        answer = self.send_is_booking_needed(user)
+        answer['message'] = 'Записали!\n' + answer['message']
+        return answer
+
+    def receive_booking_needed(self, user, message):
+        if 'Да' == message:
+            user.state = States.ASK_FOR_SERVICE_TYPE
+
+            self.prepare_booking[user.user_id] = Booking(user)
+
+            message_to_send = '{}, какой вид услуги вас интересует?\n'.format(user.first_name)
+            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'
+
+            return { 'message': message_to_send,
+                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
+
+        user.state = States.KNOWN
+        return { 'message': 'Может быть в следующий раз =)' }
+
+    def receive_service_type(self, user, message):
+
+        service_type = extract_service_type(message)
+        if None == service_type:
+            return self.receive_service(user, message)
+
+        user.state = States.ASK_FOR_SERVICE
+
+        message_to_send = 'Хорошо, выберите пожалуйста одину из услуг\n'
+        return { 'message': message_to_send,
+                 'keyboard' : str(json.dumps(KEYBOARDS_SERVICES_BY_TYPE[service_type],
+                                  ensure_ascii=False)) }
+
+    def receive_service(self, user, message):
+
+        if not is_valid_service(message):
+            return { 'message': 'Пожалуйста, выбирите один из предложеных вариантов' }
+
+        self.prepare_booking[user.user_id].services.append(message)
+        user.state = States.ASK_FOR_ANOTHER_SERV
+
+        message_to_send  = 'Спасибо) Хотите добавить еще услугу?\n'
+        return { 'message': message_to_send,
+                 'keyboard' : str(json.dumps(YES_NO_KEYBORD, ensure_ascii=False)) }
+
+    def receive_add_more(self, user, message):
+        if 'Да' == message:
+            user.state = States.ASK_FOR_SERVICE_TYPE
+
+            message_to_send  = '{}, какая услуга вас интересует?\n'.format(user.first_name)
+            message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов.'
+            return { 'message': message_to_send,
+                     'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
+
+        user.state = States.ASK_FOR_DAY
+        message_to_send = 'В какой день вам удобно придти? Напишите это в диалог и мы вас запишем.'
+        return { 'message': message_to_send }
+
+    def receive_service_day(self, user, message):
+        try:
+            geted_time = parce_time(message)
+        except ValueError:
+            return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 12:00' }
+
+        if not self.booking_store.check_time_free(geted_time):
+            free_time = self.booking_store.find_close_free_time(geted_time)
+            message_to_send = 'К сожалению данное время уже занято =('
+            if None != free_time:
+                message_to_send += ' Ближайшее свободное время {}'.format(free_time)
+
+            return { 'message': message_to_send }
+
+        prepared_booking = self.prepare_booking[user.user_id]
+        prepared_booking.time = geted_time
+        self.booking_store.add_bookig(prepared_booking)
+
+        message_to_send  = 'Все готово, ура!\n'
+
+        services_length = len(prepared_booking.services)
+        prov_string = 'процедуре'
+        if services_length != 1:
+            prov_string = 'процедурах'
+
+        message_to_send += 'Ждем вас {} на {}'.format(prepared_booking.time,
+                                                      prov_string)
+
+        counter = 1
+        for booking_service in prepared_booking.services:
+            if counter + 1 == services_length:
+                message_to_send += ' {} и'.format(booking_service)
+            elif counter == services_length:
+                message_to_send += ' {}! \U00002764\n'.format(booking_service)
+            else:
+                message_to_send += ' {},'.format(booking_service)
+
+            counter += 1
+
+        user.state = States.KNOWN
+
+        self.prepare_booking[user.user_id] = None # And delete it
+
+        return { 'message': message_to_send }
+
+    def create_answer_message(self, user, message):
+        if States.INITIAL == user.state:
+            return self.send_greetings(user)
+        elif States.ASK_FOR_NUMBER == user.state:
+            return self.receive_number(user, message)
+        elif States.ASK_FOR_SERVICE_TYPE == user.state:
+            return self.receive_service_type(user, message)
+        elif States.ASK_FOR_SERVICE == user.state:
+            return self.receive_service(user, message)
+        elif States.ASK_FOR_ANOTHER_SERV == user.state:
+            return self.receive_add_more(user, message)
+        elif States.ASK_FOR_DAY == user.state:
+            return self.receive_service_day(user, message)
+        elif States.ASK_FOR_NEED_BOOKING == user.state:
+            return self.receive_booking_needed(user, message)
+        else:
+            return self.send_is_booking_needed(user)
+
+        return { 'message': 'Привет!' }
+
+    def make_answer(self, user_id, message, user_name = None):
         user = self.clients_table.get(user_id)
         if None == user:
-            user_profile = self.vk.users.get(user_id = user_id)
-            user = User(user_id, user_profile, self, self.config.make_gifts)
+            if user_name == None:
+                return None
+            user = User(user_id, user_name, self.config.make_gifts)
             self.clients_table[user_id] = user
 
-        self.make_answer(user, message)
+        return self.create_answer_message(user, message)
 
-    def process_event(self, event):
-        if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
-            self.process_message(event.user_id, event.text)
+# if __name__ == "__main__":
+#     bot = moonBot()
 
-    def process_callback(self, request_json):
-        print(request_json) # This is debug to known whats happend
-        if 'type' not in request_json.keys():
-            return 'not vk'
-        if request_json['type'] == 'confirmation':
-            return self.config.get_confirm_secret()
-        elif request_json['type'] == 'group_join':
-            self.process_join(request_json['object']['user_id'])
-        elif request_json['type'] == 'message_new':
-            self.process_message(request_json['object']['from_id'],
-                                 request_json['object']['text'])
-        return 'ok'
+#     longpoll = VkLongPoll(bot.vk_session)
 
-if __name__ == "__main__":
-    bot = moonBot()
-
-    longpoll = VkLongPoll(bot.vk_session)
-
-    for event in longpoll.listen():
-        bot.process_event(event)
+#     for event in longpoll.listen():
+#         bot.process_event(event)
