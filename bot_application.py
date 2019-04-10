@@ -37,15 +37,34 @@ class vkMassageReceiver:
 
     def process_callback(self, request_json):
         print(request_json) # This is debug to known whats happend
+        answer = None
+        user_id = None
+
         if 'type' not in request_json.keys():
             return 'not vk'
         if request_json['type'] == 'confirmation':
             return self.config.get_confirm_secret()
         elif request_json['type'] == 'group_join':
-            self.process_join(request_json['object']['user_id'])
+            user_id = request_json['object']['user_id']
+            answer = self.process_join(user_id)
         elif request_json['type'] == 'message_new':
-            self.process_message(request_json['object']['from_id'],
-                                 request_json['object']['text'])
+            user_id = request_json['object']['from_id']
+            answer = self.process_message(user_id, request_json['object']['text'])
+
+        if None == answer or None == user_id:
+            return 'ok' # Not ok in real
+
+        try:
+            self.vk.messages.send(user_id = user_id, random_id = get_random_id(),
+                                  message    = answer.get('message'),
+                                  attachment = answer.get('attachment'),
+                                  keyboard   = answer.get('keyboard'))
+        except vk_api.exceptions.ApiError as err:
+            print(err)
+            self.vk.messages.send(user_id = user_id, random_id = get_random_id(),
+                                  message = 'Извеняюсь, что то пошло не так. Обратитесь на прямую к адменистратору сообщества')
+
+
         return 'ok'
 
 application_bot = vkMassageReceiver(boockingBot)
