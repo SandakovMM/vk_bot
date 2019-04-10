@@ -33,11 +33,11 @@ class User:
 
     @property
     def phone(self):
-        return self._state
+        return self._phone
 
     @phone.setter
     def phone(self, phone_number):
-        self.phone = phone_number
+        self._phone = phone_number
 
     @property
     def user_id(self):
