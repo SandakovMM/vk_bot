@@ -29,7 +29,7 @@ class vkMassageReceiver:
         return self.bot_instance.make_greetings(user_id, user_name)
 
     def process_message(self, user_id, message):
-        return self.bot_instance.make_answer(message, user_id)
+        return self.bot_instance.make_answer(user_id, message)
 
     def process_event(self, event):
         if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:

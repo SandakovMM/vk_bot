@@ -350,7 +350,7 @@ class boockingBot:
 
         return { 'message': message_to_send }
 
-    def create_answer_message(self, message, user):
+    def create_answer_message(self, user, message):
         if States.INITIAL == user.state:
             return self.send_greetings(user)
         elif States.ASK_FOR_NUMBER == user.state:
@@ -370,7 +370,7 @@ class boockingBot:
 
         return { 'message': 'Привет!' }
 
-    def make_answer(self, message, user_id, user_name = None):
+    def make_answer(self, user_id, message, user_name = None):
         user = self.clients_table.get(user_id)
         if None == user:
             if user_name == None:
