@@ -1,9 +1,54 @@
 #!/usr/bin/python3
 from flask import Flask, request
-from moon_bot import moonBot
-import json
 
-application_bot = moonBot()
+# Standart
+import json
+from datetime import datetime, timedelta
+
+# Libs
+import vk_api
+from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.utils import get_random_id
+
+# Our modules
+from configuration import Configuration
+from moon_bot import boockingBot
+
+class vkMassageReceiver:
+    def __init__(self, bot_type):
+        # self.clients_table = {}
+        self.config = Configuration('conf.json')
+
+        self.vk_session = vk_api.VkApi(token=self.config.get_api_secret())
+        self.vk = self.vk_session.get_api()
+        self.bot_instance = bot_type(self.config)
+
+    def process_join(self, user_id):
+        user_profile = self.vk.users.get(user_id = user_id)
+        user_name = user_profile[0]['first_name']
+        return self.bot_instance.make_greetings(user_id, user_name)
+
+    def process_message(self, user_id, message):
+        return self.bot_instance.make_answer(message, user_id)
+
+    def process_event(self, event):
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
+            self.process_message(event.user_id, event.text)
+
+    def process_callback(self, request_json):
+        print(request_json) # This is debug to known whats happend
+        if 'type' not in request_json.keys():
+            return 'not vk'
+        if request_json['type'] == 'confirmation':
+            return self.config.get_confirm_secret()
+        elif request_json['type'] == 'group_join':
+            self.process_join(request_json['object']['user_id'])
+        elif request_json['type'] == 'message_new':
+            self.process_message(request_json['object']['from_id'],
+                                 request_json['object']['text'])
+        return 'ok'
+
+application_bot = vkMassageReceiver(boockingBot)
 
 app = Flask(__name__)
 
