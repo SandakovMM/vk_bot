@@ -319,7 +319,7 @@ class boockingBot:
 
             return { 'message': message_to_send }
 
-        prepared_booking = self.prepare_booking[user.user_id].time
+        prepared_booking = self.prepare_booking[user.user_id]
         prepared_booking.time = geted_time
         self.booking_store.add_bookig(prepared_booking)
 
