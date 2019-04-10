@@ -50,6 +50,8 @@ class vkMassageReceiver:
         elif request_json['type'] == 'message_new':
             user_id = request_json['object']['from_id']
             answer = self.process_message(user_id, request_json['object']['text'])
+            if None == answer:
+                answer = self.process_join(user_id)
 
         if None == answer or None == user_id:
             return 'ok' # Not ok in real

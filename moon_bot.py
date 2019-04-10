@@ -374,7 +374,7 @@ class boockingBot:
         user = self.clients_table.get(user_id)
         if None == user:
             if user_name == None:
-                return { 'message': "Извените, что то пошло не так. Напишите нам позже =(" }
+                return None
             user = User(user_id, user_name, self.config.make_gifts)
             self.clients_table[user_id] = user
 
