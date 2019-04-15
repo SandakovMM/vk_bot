@@ -6,62 +6,8 @@ import json
 from datetime import datetime, timedelta
 from user import User, States
 
-SERVICE_TYPES = [ 'Сахарная депиляция', 'Брови', 'Ресницы']
-
-SERVICE_SET = {
-    'Сахарная депиляция': [
-        { 'name' : 'Глубокое бикини',
-          'price':  600 },
-        { 'name' : 'Классическое бикини',
-          'price':  450 },
-        { 'name' : 'Голень с коленом/бедра',
-          'price':  550 },
-        { 'name' : 'Ноги полностью',
-          'price': 1000 },
-        { 'name' : 'Любая зона на лице',
-          'price':  200 },
-        { 'name' : 'Спина/живот(полностью)',
-          'price':  600 },
-        { 'name' : 'Руки до локтя',
-          'price':  450 },
-        { 'name' : 'Руки полностью',
-          'price':  600 },
-        { 'name' : 'Подмышки',
-          'price':  200 },
-
-        { 'name'   : 'Комбо 1',
-          'price'  :  900,
-          'details': 'Глубокое бикини + голень (с коленом)'},
-        { 'name'   : 'Комбо 2',
-          'price'  : 1100,
-          'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'name'   : 'Комбо 3',
-          'price'  : 1300,
-          'details': 'глубокое бикини + голень (с коленом) + подмышечные впадины' },
-        { 'name'   : 'Комбо 4',
-          'price'  : 1500,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины'},
-        { 'name'   : 'Комбо 5',
-          'price'  : 2000,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-    ],
-    'Брови': [
-        { 'name' : 'Оформление бровей + окрашивание краской',
-          'price': 400 },
-        { 'name' : 'Оформление бровей + окрашивание хной',
-          'price': 600 },
-        { 'name' : 'Долговременная укладка бровей',
-          'price':  550,
-          'details': 'глубокое бикини + ножки полностью + подмышечные впадины + ручки полностью + зона над губой' },
-    ],
-    'Ресницы': [
-        { 'name' : 'Реконструкция ресниц Velve',
-          'price': 1500 },
-        { 'name' : 'Реконструкция ресниц Velvet + BOTOX 3D',
-          'price': 1700 },
-    ],
-}
-
+SERVICE_TYPES = [ ]
+SERVICE_SET   = { }
 
 KEYBOARD_SERVICE_TYPE = {
     'one_time': True,
@@ -97,6 +43,14 @@ def fill_buttons_from_data(buttons, data, data_extract_fn):
 
     buttons['buttons'].append(store_array)
 
+def feel_service_store(service_set):
+    for service_by_type in service_set:
+        SERVICE_TYPES.append(service_by_type["service_type"])
+        set_entry = []
+        for service in service_by_type["services"]:
+            set_entry.append({"name" : service["name"]})
+        SERVICE_SET[service_by_type["service_type"]] = set_entry
+
 def create_buttons():
     fill_buttons_from_data(KEYBOARD_SERVICE_TYPE, SERVICE_TYPES,
                            lambda data_element: data_element)
@@ -106,8 +60,6 @@ def create_buttons():
         fill_buttons_from_data(type_keyboard, SERVICE_SET[service_type],
                            lambda data_element: data_element['name'])
         KEYBOARDS_SERVICES_BY_TYPE[service_type] = type_keyboard
-
-create_buttons()
 
 YES_NO_KEYBORD = {
     'one_time': True,
@@ -208,6 +160,9 @@ class boockingBot:
         self.prepare_booking = {} # store prepare booking by user_id
 
         self.config = configuration
+
+        feel_service_store(configuration.get_service_set())
+        create_buttons()
 
     def send_greetings(self, user):
         user.state = States.ASK_FOR_NUMBER

@@ -3,20 +3,26 @@
 import unittest
 import json
 from moon_bot import *
+from configuration import *
 
 class TestMoonBot(unittest.TestCase):
     def setUp(self):
-        self.moonBot = moonBot()
+        config = Configuration("conf.json")
+        self.moonBot = boockingBot(config)
 
-    def test_expect_vk(self):
-        self.assertEqual(self.moonBot.process_callback({"nothing" : "nothing"}),
-                         'not vk')
+    # def test_expect_vk(self):
+    #     self.assertEqual(self.moonBot.process_callback({"nothing" : "nothing"}),
+    #                      'not vk')
+
+    def test_init_buttons_from_conf(self):
+        print(KEYBOARDS_SERVICES_BY_TYPE)
 
 class TestUserAnswers(unittest.TestCase):
     def setUp(self):
-        self.moonBot = moonBot()
-        self.moonBot.clients_table[1] = User(1, [{'first_name':'test_user'}], self.moonBot)
-        self.moonBot.clients_table[2] = User(2, [{'first_name':'sec_user'}],  self.moonBot, gift=True)
+        config = Configuration("conf.json")
+        self.moonBot = boockingBot(config)
+        self.moonBot.clients_table[1] = User(1, 'test_user')
+        self.moonBot.clients_table[2] = User(2, 'sec_user', gift=True)
 
     def test_time_checking(self):
         test_user = self.moonBot.clients_table[1]
