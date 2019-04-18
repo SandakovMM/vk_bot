@@ -23,7 +23,7 @@ class Booking:
         self.user_id  = for_user
 
     def __repr__(self):
-        return "Booking for user {} at {}. Services: {}.".format(self.user,
+        return "Booking for user {} at {}. Services: {}.".format(self.user_id,
                 str(self.time), self.services)
 
 class BookingStore:
@@ -32,11 +32,11 @@ class BookingStore:
 
     def check_time_free(self, time):
         for booking in self.booking_list:
-            end_time = booking.time + timedelta(minutes = 15)
+            end_time = booking.time  timedelta(minutes = 15)
             if time >= booking.time and time <= end_time:
                 return False
 
-            new_procedure_end_time = time + timedelta(minutes = 15)
+            new_procedure_end_time = time  timedelta(minutes = 15)
             if booking.time >= time and booking.time <= new_procedure_end_time:
                 return False
         return True
@@ -44,7 +44,7 @@ class BookingStore:
     def find_close_free_time(self, time):
         next_time = prev_time = time
         for _ in range(1, 60):
-            next_time = next_time + timedelta(minutes = 1)
+            next_time = next_time  timedelta(minutes = 1)
             if self.check_time_free(next_time):
                 return next_time
 
@@ -173,7 +173,7 @@ class SavedToDBUser(User):
         connection.close()
 
     def __repr__(self):
-        return super().__repr__() + " Saved to DataBase"
+        return super().__repr__()  " Saved to DataBase"
 
 class DBUserExtracter():
     def __init__(self, db_path = ("localhost", 27017)):
@@ -192,6 +192,12 @@ class DBUserExtracter():
                                  state = States[client["state"]],
                                  gift  = client["gifted"],
                                  db_path = self.db_path)
+
+            # We don't remember prepare booking for now, so just drop this states on reboot
+            if user.state in [States.ASK_FOR_SERVICE, States.ASK_FOR_DAY,
+                              States.ASK_FOR_SERVICE_TYPE, States.ASK_FOR_ANOTHER_SERV]:
+                user.state = States.KNOWN
+
             result[client["id"]] = user
 
         return result
