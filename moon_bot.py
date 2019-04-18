@@ -3,8 +3,8 @@ import copy
 
 import json
 
-from datetime import datetime, timedelta
-from user import User, States
+from datetime import datetime
+from booking_data import *
 
 SERVICE_TYPES = [ ]
 SERVICE_SET   = { }
@@ -116,50 +116,14 @@ def parce_time(string):
 def is_time_free(string):
     return True
 
-class Booking:
-    def __init__(self, for_user):
-        self.services = []
-        self.time     = None
-        self.user     = for_user
-
-class BookingStore:
-    def __init__(self):
-        self.booking_list = []
-
-    def check_time_free(self, time):
-        for booking in self.booking_list:
-            end_time = booking.time + timedelta(minutes = 15)
-            if time >= booking.time and time <= end_time:
-                return False
-
-            new_procedure_end_time = time + timedelta(minutes = 15)
-            if booking.time >= time and booking.time <= new_procedure_end_time:
-                return False
-        return True
-
-    def find_close_free_time(self, time):
-        next_time = prev_time = time
-        for _ in range(1, 60):
-            next_time = next_time + timedelta(minutes = 1)
-            if self.check_time_free(next_time):
-                return next_time
-
-            prev_time = prev_time - timedelta(minutes = 1)
-            if self.check_time_free(prev_time):
-                return prev_time
-
-        return None
-
-    def add_bookig(self, to_add):
-        self.booking_list.append(to_add)
-
 class boockingBot:
     def __init__(self, configuration):
-        self.booking_store   = BookingStore()
-        self.clients_table   = {}
+        self.booking_store   = DBBookingStore()
         self.prepare_booking = {} # store prepare booking by user_id
 
         self.config = configuration
+
+        self.clients_table = DBUserExtracter(self.config.get_db_params()).extract_users()
 
         feel_service_store(configuration.get_service_set())
         create_buttons()
@@ -266,17 +230,17 @@ class boockingBot:
         except ValueError:
             return { 'message': 'Не совсем поняли вас. Пример даты и времени: 17.11.2018 12:00' }
 
-        if not self.booking_store.check_time_free(geted_time):
+        prepared_booking = self.prepare_booking[user.user_id]
+        prepared_booking.time = geted_time
+
+        if not self.booking_store.add_bookig(prepared_booking):
+            prepared_booking.time = None
             free_time = self.booking_store.find_close_free_time(geted_time)
             message_to_send = 'К сожалению данное время уже занято =('
             if None != free_time:
                 message_to_send += ' Ближайшее свободное время {}'.format(free_time)
 
             return { 'message': message_to_send }
-
-        prepared_booking = self.prepare_booking[user.user_id]
-        prepared_booking.time = geted_time
-        self.booking_store.add_bookig(prepared_booking)
 
         message_to_send  = 'Все готово, ура!\n'
 
@@ -330,7 +294,9 @@ class boockingBot:
         if None == user:
             if user_name == None:
                 return None
-            user = User(user_id, user_name, self.config.make_gifts)
+            user = SavedToDBUser(user_id, user_name,
+                                 gift    = self.config.make_gifts,
+                                 db_path = self.config.get_db_params())
             self.clients_table[user_id] = user
 
         return self.create_answer_message(user, message)

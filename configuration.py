@@ -10,6 +10,10 @@ class Configuration:
             self.confirm_vk_secret = configuration['confirm_secret']
             self.bot_module        = configuration['bot_module']
             self.make_gifts        = configuration['make_gifts']
+
+            self.db_url            = configuration['db_url']
+            self.db_port           = configuration['db_port']
+
             self.service_set       = configuration['service_set']
         except:
             print('Configuration file conf.json does not exist. Create it')
@@ -23,3 +27,6 @@ class Configuration:
 
     def get_service_set(self):
         return self.service_set
+
+    def get_db_params(self):
+        return (self.db_url, self.db_port)
