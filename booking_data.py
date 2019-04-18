@@ -96,6 +96,8 @@ class DBBookingStore(BookingStore):
 
         connection.close()
 
+        return True
+
 class User:
     def __init__(self, user_id, user_name, phone = None,
                  state = States.INITIAL, gift = False):
