@@ -152,7 +152,7 @@ class boockingBot:
             # self.make_greetings(user) # <-- remove it later
             return # Already known user - don't do anything
 
-        user = User(user_id, user_name, self.config.make_gifts)
+        user = SavedToDBUser(user_id, user_name, gift = self.config.make_gifts)
         self.clients_table[user_id] = user
         return self.send_greetings(user)
 
