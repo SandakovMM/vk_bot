@@ -32,11 +32,11 @@ class BookingStore:
 
     def check_time_free(self, time):
         for booking in self.booking_list:
-            end_time = booking.time  timedelta(minutes = 15)
+            end_time = booking.time + timedelta(minutes = 15)
             if time >= booking.time and time <= end_time:
                 return False
 
-            new_procedure_end_time = time  timedelta(minutes = 15)
+            new_procedure_end_time = time + timedelta(minutes = 15)
             if booking.time >= time and booking.time <= new_procedure_end_time:
                 return False
         return True
@@ -44,7 +44,7 @@ class BookingStore:
     def find_close_free_time(self, time):
         next_time = prev_time = time
         for _ in range(1, 60):
-            next_time = next_time  timedelta(minutes = 1)
+            next_time = next_time + timedelta(minutes = 1)
             if self.check_time_free(next_time):
                 return next_time
 
