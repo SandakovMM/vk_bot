@@ -175,7 +175,7 @@ class SavedToDBUser(User):
         connection.close()
 
     def __repr__(self):
-        return super().__repr__()  " Saved to DataBase"
+        return super().__repr__() + " Saved to DataBase"
 
 class DBUserExtracter():
     def __init__(self, db_path = ("localhost", 27017)):
