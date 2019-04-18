@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from enum import Enum
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 
 from pymongo import MongoClient
@@ -21,6 +21,10 @@ class Booking:
         self.services = []
         self.time     = None
         self.user     = for_user
+
+    def __repr__(self):
+        return "Booking for user {} at {}. Services: {}.".format(self.user,
+                str(self.time), self.services)
 
 class BookingStore:
     def __init__(self):
@@ -69,7 +73,8 @@ class DBBookingStore(BookingStore):
 
         for booking in booking_collection.find():
             need_to_add = Booking(booking["user"])
-            need_to_add.time = booking["time"]
+            # Use there standart time format
+            need_to_add.time = datetime.strptime(booking["time"], "%Y-%m-%d %H:%M:%S")
             for service in booking["services"]:
                 need_to_add.services.append(service)
             
@@ -85,7 +90,8 @@ class DBBookingStore(BookingStore):
         base = connection.booking_bot_base
         booking_collection = base.booking_collection
 
-        booking_to_add = json.dumps(to_add.__dict__)
+        booking_to_add = {"user_id": to_add.user, "time": str(to_add.time),
+                          "services": to_add.services }
         booking_collection.insert_one(booking_to_add)
 
         connection.close()

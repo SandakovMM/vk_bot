@@ -2,6 +2,8 @@
 
 import unittest
 import json
+
+from datetime import datetime
 from booking_data import *
 
 # class TestUser(User):
@@ -22,11 +24,22 @@ class TestBooking(unittest.TestCase):
 
     def test_json_serialization(self):
         booking_instance = Booking(1)
-        booking_instance.time = 10
+        booking_instance.time = datetime.strptime("10.09.2019 11:50", '%d.%m.%Y %H:%M')
         booking_instance.services.append("One")
         booking_instance.services.append("Two")
 
-        print(json.dumps(booking_instance.__dict__))
+        doc = {"user_id": booking_instance.user, "time": str(booking_instance.time),
+               "services": booking_instance.services }
+        #            "phone":  self._phone,   "state": self._state.name,
+        #            "gifted": self.gift_geted }
+        # print(doc)
+
+        booking_loaded = Booking(doc["user_id"])
+        booking_loaded.time = datetime.strptime(doc["time"], "%Y-%m-%d %H:%M:%S")
+        for service in doc["services"]:
+            booking_loaded.services.append(service)
+
+        print(booking_loaded)
 
 
 class TestDBUsers(unittest.TestCase):
