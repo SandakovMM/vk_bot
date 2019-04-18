@@ -72,7 +72,7 @@ class DBBookingStore(BookingStore):
         booking_collection = base.booking_collection
 
         for booking in booking_collection.find():
-            need_to_add = Booking(booking["user"])
+            need_to_add = Booking(booking["user_id"])
             # Use there standart time format
             need_to_add.time = datetime.strptime(booking["time"], "%Y-%m-%d %H:%M:%S")
             for service in booking["services"]:
