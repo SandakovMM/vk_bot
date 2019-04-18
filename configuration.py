@@ -16,7 +16,7 @@ class Configuration:
 
             self.service_set       = configuration['service_set']
         except:
-            print('Configuration file conf.json does not exist. Create it')
+            print('Configuration file {} does not exist. Create it!'.format(filename))
             exit(0)
 
     def get_confirm_secret(self):
