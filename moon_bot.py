@@ -176,7 +176,7 @@ class boockingBot:
         if 'Да' == message:
             user.state = States.ASK_FOR_SERVICE_TYPE
 
-            self.prepare_booking[user.user_id] = Booking(user)
+            self.prepare_booking[user.user_id] = Booking(user.user_id)
 
             message_to_send = '{}, какой вид услуги вас интересует?\n'.format(user.first_name)
             message_to_send += 'Нажмите кнопку или напишите сообщением один из вариантов. Так же вы можете написать сразу нужную услугу :)'

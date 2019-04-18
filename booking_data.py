@@ -20,7 +20,7 @@ class Booking:
     def __init__(self, for_user):
         self.services = []
         self.time     = None
-        self.user     = for_user
+        self.user_id  = for_user
 
     def __repr__(self):
         return "Booking for user {} at {}. Services: {}.".format(self.user,
@@ -90,7 +90,7 @@ class DBBookingStore(BookingStore):
         base = connection.booking_bot_base
         booking_collection = base.booking_collection
 
-        booking_to_add = {"user_id": to_add.user, "time": str(to_add.time),
+        booking_to_add = {"user_id": to_add.user_id, "time": str(to_add.time),
                           "services": to_add.services }
         booking_collection.insert_one(booking_to_add)
 
