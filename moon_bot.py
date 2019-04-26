@@ -26,6 +26,8 @@ def fill_buttons_from_data(buttons, data, data_extract_fn):
     array_pos = 1
     store_array = []
 
+    buttons['buttons'].clear()
+
     for element in data:
         store_array.append(
             {'action': {
@@ -45,6 +47,7 @@ def fill_buttons_from_data(buttons, data, data_extract_fn):
     buttons['buttons'].append(store_array)
 
 def feel_service_store(service_set):
+    SERVICE_TYPES.clear()
     for service_by_type in service_set:
         SERVICE_TYPES.append(service_by_type["service_type"])
         set_entry = []
@@ -119,15 +122,19 @@ def is_time_free(string):
 
 class boockingBot:
     def __init__(self, configuration):
-        self.booking_store   = DBBookingStore()
-        self.prepare_booking = {} # store prepare booking by user_id
-
         self.config = configuration
-
-        self.clients_table = DBUserExtracter(self.config.get_db_params()).extract_users()
+        self.create_stores(configuration)
 
         feel_service_store(configuration.get_service_set())
         create_buttons()
+
+    def create_stores(self, configuration):
+        self.booking_store   = BookingStore()
+        self.prepare_booking = {} # store prepare booking by user_id
+        self.clients_table   = {}
+
+    def create_user(self, user_id, user_name):
+        return User(user_id, user_name, gift = self.config.make_gifts)
 
     def send_greetings(self, user):
         user.state = States.ASK_FOR_NUMBER
@@ -152,7 +159,7 @@ class boockingBot:
             # self.make_greetings(user) # <-- remove it later
             return # Already known user - don't do anything
 
-        user = SavedToDBUser(user_id, user_name, gift = self.config.make_gifts)
+        user = self.create_user(user_id, user_name)
         self.clients_table[user_id] = user
         return self.send_greetings(user)
 
@@ -185,6 +192,8 @@ class boockingBot:
                      'keyboard' : str(json.dumps(KEYBOARD_SERVICE_TYPE, ensure_ascii=False)) }
 
         user.state = States.KNOWN
+        # that can be not obvious, but i think we don't need to say there
+        # "hay, a want yes or no!!!" and just say "ok, maybe later"
         return { 'message': 'Может быть в следующий раз =)' }
 
     def receive_service_type(self, user, message):
@@ -295,12 +304,23 @@ class boockingBot:
         if None == user:
             if user_name == None:
                 return None
-            user = SavedToDBUser(user_id, user_name,
-                                 gift    = self.config.make_gifts,
-                                 db_path = self.config.get_db_params())
+            user = self.create_user(user_id, user_name)
             self.clients_table[user_id] = user
 
         return self.create_answer_message(user, message)
+
+class DBConnectedBoockingBot(boockingBot):
+    def __init__(self, configuration):
+        super().__init__(configuration)
+
+    def create_stores(self, configuration):
+        self.booking_store   = DBBookingStore()
+        self.prepare_booking = {} # store prepare booking by user_id
+        self.clients_table = extract_users_from_db(self.config.get_db_params())
+
+    def create_user(self, user_id, user_name):
+        return SavedToDBUser(user_id, user_name, gift = self.config.make_gifts,
+                             db_path = self.config.get_db_params())
 
 # if __name__ == "__main__":
 #     bot = moonBot()

@@ -177,35 +177,30 @@ class SavedToDBUser(User):
     def __repr__(self):
         return super().__repr__() + " Saved to DataBase"
 
-class DBUserExtracter():
-    def __init__(self, db_path = ("localhost", 27017)):
-        self.db_path = db_path
-        db_url, db_port = db_path
-        self.connection = MongoClient(db_url, db_port)
-        self.base       = self.connection.booking_bot_base
-        self.clients    = self.base.clients_collection
+def extract_users_from_db(db_path = ("localhost", 27017)):
+    db_url, db_port = db_path
+    connection = MongoClient(db_url, db_port)
+    base       = connection.booking_bot_base
+    clients    = base.clients_collection
 
-    def extract_users(self):
-        result = { }
-        for client in self.clients.find():
-            # Need to avoid saeing here
-            user = SavedToDBUser(client["id"], client["name"],
-                                 phone = client["phone"],
-                                 state = States[client["state"]],
-                                 gift  = client["gifted"],
-                                 db_path = self.db_path)
+    result = { }
+    for client in self.clients.find():
+        # Need to avoid saeing here
+        user = SavedToDBUser(client["id"], client["name"],
+                                phone = client["phone"],
+                                state = States[client["state"]],
+                                gift  = client["gifted"],
+                                db_path = self.db_path)
 
-            # We don't remember prepare booking for now, so just drop this states on reboot
-            if user.state in [States.ASK_FOR_SERVICE, States.ASK_FOR_DAY,
-                              States.ASK_FOR_SERVICE_TYPE, States.ASK_FOR_ANOTHER_SERV]:
-                user.state = States.KNOWN
+        # We don't remember prepare booking for now, so just drop this states on reboot
+        if user.state in [States.ASK_FOR_SERVICE, States.ASK_FOR_DAY,
+                            States.ASK_FOR_SERVICE_TYPE, States.ASK_FOR_ANOTHER_SERV]:
+            user.state = States.KNOWN
 
-            result[client["id"]] = user
+        result[client["id"]] = user
 
-        return result
-
-    def __del__(self):
-        self.connection.close()
+    self.connection.close()
+    return result
 
 # if __name__ == "__main__":
 #     user = User(1, "aaa", None)

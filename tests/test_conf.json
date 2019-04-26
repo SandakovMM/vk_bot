@@ -1,0 +1,29 @@
+{
+    "confirm_secret": "aaaaaaaa",
+    "api_secret": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bot_module": "nothing.py",
+    "make_gifts": false,
+
+    "db_url": "127.0.0.1",
+    "db_port": 27017,
+
+    "service_set": [
+        { "service_type" : "Adding",
+          "services": [
+            { "name" : "a_one", "price":  600 },
+            { "name" : "a_two", "price":  450 },
+            { "name" : "a_three", "price":  550 }
+        ] },
+        { "service_type": "Updating",
+          "services": [
+            { "name" : "u_one", "price": 400 },
+            { "name" : "u_two", "price": 600 },
+            { "name" : "u_three", "price":  550, "details": "some details" }
+        ] },
+        { "service_type": "Removing",
+          "services": [
+            { "name" : "r_one", "price": 1500 },
+            { "name" : "r_two", "price": 1700 }
+        ] }
+    ]
+}
