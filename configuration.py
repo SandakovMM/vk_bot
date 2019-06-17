@@ -1,4 +1,5 @@
 import json
+import os
 
 class Configuration:
     def __init__(self, filename):
@@ -16,8 +17,9 @@ class Configuration:
             self.bot_module        = configuration['bot_module']
             self.make_gifts        = configuration['make_gifts']
 
-            self.db_url            = configuration['db_url']
-            self.db_port           = configuration['db_port']
+            # Use system env here to support fine configuration over docker compose
+            self.db_url            = os.environ['DBHOST']
+            self.db_port           = os.environ['DBPORT']
 
             self.service_set       = configuration['service_set']
         except:

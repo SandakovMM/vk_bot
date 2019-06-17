@@ -12,7 +12,7 @@ from vk_api.utils import get_random_id
 
 # Our modules
 from configuration import Configuration
-from moon_bot import boockingBot
+from moon_bot import boockingBot, DBConnectedBoockingBot
 
 class vkMassageReceiver:
     def __init__(self, bot_type):
@@ -72,7 +72,8 @@ class vkMassageReceiver:
 
         return 'ok'
 
-application_bot = vkMassageReceiver(boockingBot)
+# application_bot = vkMassageReceiver(boockingBot)
+application_bot = vkMassageReceiver(DBConnectedBoockingBot)
 
 app = Flask(__name__)
 
