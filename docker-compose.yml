@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  database:
+    image: mongo
+    container_name: bot-mongo-db
+
+  bot-app:
+    build: .
+    container_name: vk-bot
+    ports:
+      - "80:80"
+    links:
+      - database
+    depends_on:
+      - database
+    environment:
+      - DBHOST=database
+      - DBPORT=27017
