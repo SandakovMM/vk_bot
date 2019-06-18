@@ -184,13 +184,13 @@ def extract_users_from_db(db_path = ("localhost", 27017)):
     clients    = base.clients_collection
 
     result = { }
-    for client in self.clients.find():
+    for client in clients.find():
         # Need to avoid saeing here
         user = SavedToDBUser(client["id"], client["name"],
                                 phone = client["phone"],
                                 state = States[client["state"]],
                                 gift  = client["gifted"],
-                                db_path = self.db_path)
+                                db_path = db_path)
 
         # We don't remember prepare booking for now, so just drop this states on reboot
         if user.state in [States.ASK_FOR_SERVICE, States.ASK_FOR_DAY,
@@ -199,7 +199,7 @@ def extract_users_from_db(db_path = ("localhost", 27017)):
 
         result[client["id"]] = user
 
-    self.connection.close()
+    connection.close()
     return result
 
 # if __name__ == "__main__":
