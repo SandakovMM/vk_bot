@@ -25,7 +25,7 @@ class Configuration:
         try:
             # Use system env here to support fine configuration over docker compose
             self.db_url  = os.environ['DBHOST']
-            self.db_port = os.environ['DBPORT']
+            self.db_port = int(os.environ['DBPORT'])
         except:
             print('Enviroment don\'t has DBHOST or DBPORT varables, add it to show where is database.')
             exit(0)
