@@ -17,13 +17,17 @@ class Configuration:
             self.bot_module        = configuration['bot_module']
             self.make_gifts        = configuration['make_gifts']
 
-            # Use system env here to support fine configuration over docker compose
-            self.db_url            = os.environ['DBHOST']
-            self.db_port           = os.environ['DBPORT']
-
             self.service_set       = configuration['service_set']
         except:
             print('Configuration file {} does not store needed parameters.'.format(filename))
+            exit(0)
+
+        try:
+            # Use system env here to support fine configuration over docker compose
+            self.db_url  = os.environ['DBHOST']
+            self.db_port = os.environ['DBPORT']
+        except:
+            print('Enviroment don\'t has DBHOST or DBPORT varables, add it to show where is database.')
             exit(0)
 
     def get_confirm_secret(self):
