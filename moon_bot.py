@@ -314,7 +314,7 @@ class DBConnectedBoockingBot(boockingBot):
         super().__init__(configuration)
 
     def create_stores(self, configuration):
-        self.booking_store   = DBBookingStore()
+        self.booking_store   = DBBookingStore(self.config.get_db_params())
         self.prepare_booking = {} # store prepare booking by user_id
         self.clients_table = extract_users_from_db(self.config.get_db_params())
 
